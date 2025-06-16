@@ -30,7 +30,7 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
       icon: Trophy,
       poolAmount: dailyPool.firstPrize,
       reserveAmount: reserves.firstPrizeReserve1,
-      potentialAmount: accumulatedPools?.firstPrizeAccumulated,
+      potentialAmount: accumulatedPools?.firstPrizeAccumulated || 0n,
       color: 'from-yellow-500 to-orange-500',
       iconColor: 'text-yellow-400',
       bgColor: 'bg-yellow-500/10',
@@ -327,7 +327,7 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
             </div>
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-              <span className="text-gray-400">Reservas: {dailyPool.reservesSent ? 'Enviadas' : 'Pendientes'}</span>
+              <span className="text-gray-400">Reservas: Activas</span>
             </div>
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
