@@ -17,7 +17,7 @@ const EmojiSelector: React.FC<EmojiSelectorProps> = ({
     if (disabled) return;
 
     // Add animation
-    setAnimatingEmojis(prev => new Set([...prev, emojiIndex]));
+    setAnimatingEmojis(prev => new Set(Array.from(prev).concat(emojiIndex)));
     setTimeout(() => {
       setAnimatingEmojis(prev => {
         const next = new Set(prev);
