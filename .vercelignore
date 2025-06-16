@@ -1,0 +1,25 @@
+# Firebase Functions
+functions/
+.firebase/
+firebase-debug.log*
+firebase-debug.*.log*
+.firebaserc
+firebase.json
+firestore.rules
+firestore.indexes.json
+
+# Smart Contracts
+contracts/
+artifacts/
+cache/
+scripts/
+hardhat.config.js
+deploy-*.js
+
+# Environment files with sensitive data
+.env
+.env.local
+
+# Development files
+node_modules/
+*.log 
