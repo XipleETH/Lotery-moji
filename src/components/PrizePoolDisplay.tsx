@@ -109,11 +109,11 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
   const getDailyContribution = (prizeLevel: 1 | 2 | 3): string => {
     switch (prizeLevel) {
       case 1:
-        return formatUSDC(dailyPool.firstPrizeDaily);
+        return formatUSDC(dailyPool.firstPrize);
       case 2:
-        return formatUSDC(dailyPool.secondPrizeDaily);
+        return formatUSDC(dailyPool.secondPrize);
       case 3:
-        return formatUSDC(dailyPool.thirdPrizeDaily);
+        return formatUSDC(dailyPool.thirdPrize);
       default:
         return '0.00';
     }
