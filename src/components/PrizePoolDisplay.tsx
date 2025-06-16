@@ -6,7 +6,7 @@ import { Trophy, Zap, Target, Gift } from 'lucide-react';
 
 interface PrizePoolDisplayProps {
   dailyPool: DailyPool;
-  accumulatedPools: AccumulatedPools;
+  accumulatedPools?: AccumulatedPools;
   reserves: ReservePools;
   loading?: boolean;
   showDetails?: boolean;
@@ -30,7 +30,7 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
       icon: Trophy,
       poolAmount: dailyPool.firstPrize,
       reserveAmount: reserves.firstPrizeReserve1,
-      potentialAmount: accumulatedPools.firstPrizeAccumulated,
+      potentialAmount: accumulatedPools?.firstPrizeAccumulated,
       color: 'from-yellow-500 to-orange-500',
       iconColor: 'text-yellow-400',
       bgColor: 'bg-yellow-500/10',
@@ -45,7 +45,7 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
       icon: Zap,
       poolAmount: dailyPool.secondPrize,
       reserveAmount: reserves.secondPrizeReserve2,
-      potentialAmount: accumulatedPools.secondPrizeAccumulated,
+      potentialAmount: accumulatedPools?.secondPrizeAccumulated,
       color: 'from-purple-500 to-pink-500',
       iconColor: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
@@ -60,7 +60,7 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
       icon: Target,
       poolAmount: dailyPool.thirdPrize,
       reserveAmount: reserves.thirdPrizeReserve3,
-      potentialAmount: accumulatedPools.thirdPrizeAccumulated,
+      potentialAmount: accumulatedPools?.thirdPrizeAccumulated,
       color: 'from-blue-500 to-cyan-500',
       iconColor: 'text-blue-400',
       bgColor: 'bg-blue-500/10',
@@ -95,11 +95,11 @@ const PrizePoolDisplay: React.FC<PrizePoolDisplayProps> = ({
   const getTotalPotentialWinning = (prizeLevel: 1 | 2 | 3): string => {
     switch (prizeLevel) {
       case 1:
-        return formatUSDC(accumulatedPools.firstPrizeAccumulated);
+        return formatUSDC(accumulatedPools?.firstPrizeAccumulated || 0);
       case 2:
-        return formatUSDC(accumulatedPools.secondPrizeAccumulated);
+        return formatUSDC(accumulatedPools?.secondPrizeAccumulated || 0);
       case 3:
-        return formatUSDC(accumulatedPools.thirdPrizeAccumulated);
+        return formatUSDC(accumulatedPools?.thirdPrizeAccumulated || 0);
       default:
         return '0.00';
     }
