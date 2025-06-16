@@ -35,8 +35,8 @@ export interface AccumulatedPools {
   developmentAccumulated: bigint;  // Always gets paid to development
 }
 
-// Updated daily pool structure - now represents daily contributions
-export interface DailyPool {
+// Daily pool structure for blockchain contracts (raw bigint values)
+export interface DailyPoolContract {
   totalCollected: bigint;          // Total USDC collected this day
   mainPoolPortion: bigint;         // 80% portion that goes to main pools
   reservePortion: bigint;          // 20% portion that goes to reserves
@@ -51,8 +51,8 @@ export interface DailyPool {
   reservesSent: boolean;           // NEW: Track if 20% sent to reserves
 }
 
-// Reserve system types - NEW STRUCTURE
-export interface ReservePools {
+// Reserve system types for contracts (raw bigint values)
+export interface ReservePoolsContract {
   firstPrizeReserve1: bigint;     // Accumulates 20% of first prize daily
   secondPrizeReserve2: bigint;    // Accumulates 20% of second prize daily
   thirdPrizeReserve3: bigint;     // Accumulates 20% of third prize daily
