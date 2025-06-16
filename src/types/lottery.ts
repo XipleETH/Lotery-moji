@@ -365,12 +365,36 @@ export interface UseLotteryReturn {
 }
 
 export interface UseWalletReturn {
+  // Wallet state
   wallet: WalletState;
+  loading: boolean;
+  error: string | null;
+  
+  // Actions
   connect: () => Promise<void>;
   disconnect: () => void;
   switchChain: () => Promise<void>;
-  loading: boolean;
-  error: string | null;
+  refreshWallet: () => Promise<void>;
+  
+  // Utilities
+  hasEnoughUSDC: (amount?: number) => boolean;
+  hasEnoughAllowance: (amount?: number) => boolean;
+  isCorrectNetwork: () => boolean;
+  getWalletStatus: () => {
+    status: string;
+    message: string;
+    action: string | null;
+  };
+  formatAddress: (address?: string) => string;
+  getNetworkName: () => string;
+  
+  // Computed values
+  isWalletAvailable: boolean;
+  isConnected: boolean;
+  address?: string;
+  balance?: number;
+  usdcBalance?: number;
+  chainId?: number;
 }
 
 export interface UseReservesReturn {
