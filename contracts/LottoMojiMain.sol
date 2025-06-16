@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LottoMojiTickets.sol";
 import "./LottoMojiReserves.sol";
-import "./LottoMojiRandom.sol";
+import "./LottoMojiRandomV25.sol";
 
 /**
  * @title LottoMojiMain
@@ -16,9 +16,9 @@ import "./LottoMojiRandom.sol";
 contract LottoMojiMain is ReentrancyGuard, Ownable {
     // 25 crypto/gambling themed emojis
     string[25] public EMOJIS = [
-        "💰", "💎", "🚀", "🎰", "🎲", "🃏", "💸", "🏆", "🎯", "🔥",
-        "⚡", "🌙", "⭐", "💫", "🎪", "🎨", "🦄", "🌈", "🍀", "🎭", 
-        "🎢", "🎮", "🏅", "🎊", "🎈"
+        "MONEY", "DIAMOND", "ROCKET", "SLOT", "DICE", "JOKER", "CASH", "TROPHY", "TARGET", "FIRE",
+        "LIGHTNING", "MOON", "STAR", "SPARKLE", "CIRCUS", "ART", "UNICORN", "RAINBOW", "CLOVER", "THEATER", 
+        "ROLLER", "GAME", "MEDAL", "CONFETTI", "BALLOON"
     ];
     
     // Constants for new reserve system
@@ -36,7 +36,7 @@ contract LottoMojiMain is ReentrancyGuard, Ownable {
     IERC20 public immutable usdcToken;
     LottoMojiTickets public immutable ticketNFT;
     LottoMojiReserves public immutable reserveContract;
-    LottoMojiRandom public immutable randomContract;
+    LottoMojiRandomV25 public immutable randomContract;
     
     // Game state
     uint256 public currentGameDay;
@@ -138,11 +138,11 @@ contract LottoMojiMain is ReentrancyGuard, Ownable {
         address _ticketNFT,
         address _reserveContract,
         address _randomContract
-    ) {
+    ) Ownable(msg.sender) {
         usdcToken = IERC20(_usdcToken);
         ticketNFT = LottoMojiTickets(_ticketNFT);
         reserveContract = LottoMojiReserves(_reserveContract);
-        randomContract = LottoMojiRandom(_randomContract);
+        randomContract = LottoMojiRandomV25(_randomContract);
         
         currentGameDay = getCurrentDay();
         lastDrawTime = block.timestamp;
@@ -193,6 +193,13 @@ contract LottoMojiMain is ReentrancyGuard, Ownable {
      * @dev NEW: Send daily reserves BEFORE draw (20% of each pool goes to reserves)
      */
     function sendDailyReservesToContract(uint256 gameDay) external {
+        _sendDailyReservesToContract(gameDay);
+    }
+    
+    /**
+     * @dev Internal function to send daily reserves
+     */
+    function _sendDailyReservesToContract(uint256 gameDay) internal {
         require(!dailyPools[gameDay].reservesSent, "Reserves already sent for this day");
         require(dailyPools[gameDay].totalCollected > 0, "No funds collected this day");
         
@@ -245,7 +252,7 @@ contract LottoMojiMain is ReentrancyGuard, Ownable {
         
         // FIRST: Send daily reserves if not sent yet
         if (!dailyPools[gameDay].reservesSent && dailyPools[gameDay].totalCollected > 0) {
-            sendDailyReservesToContract(gameDay);
+            _sendDailyReservesToContract(gameDay);
         }
         
         // Get random numbers from Chainlink

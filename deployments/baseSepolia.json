@@ -1,0 +1,14 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "deployer": "0xDfA9A93f2d5d1861553cb22eb3023Ee3eFEF67e0",
+  "timestamp": "2025-06-16T02:29:10.349Z",
+  "contracts": {
+    "LottoMojiRandom": "0x3674D09be633dB84A2943B8386196D3eE9F9DeCc",
+    "LottoMojiTickets": "0x96303188b9e09f6F8b55685f51273c57DD2a8f79",
+    "LottoMojiReserves": "0x765A3071f14BDD5272e6Cc83BE7fa059F472a77F",
+    "LottoMojiMain": "0x3823B745121DFC7616CC2F3dd15E89e0cb1E7987",
+    "LottoMojiAutomation": "0x311b8Aec021a78c3291005A5ee58727e080Fe94b"
+  },
+  "notes": "LottoMojiRandom redesplegado con dirección correcta de LottoMojiMain"
+}

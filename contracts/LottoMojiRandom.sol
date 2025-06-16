@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 /**
  * @title LottoMojiRandom
  * @dev Chainlink VRF v2.5 for secure random number generation (0-24 for 25 emojis)
  */
-contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
-    VRFCoordinatorV2Interface COORDINATOR;
+contract LottoMojiRandom is VRFConsumerBaseV2Plus {
     
-    // Base Sepolia VRF Coordinator
+    // Base Sepolia VRF v2.5 Coordinator
     address constant VRF_COORDINATOR = 0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE;
     
-    // Base Sepolia 200 gwei key hash
-    bytes32 constant KEY_HASH = 0x8077df514608a09f83e4e8d300645594e5d7cd9f1e39beb9b8ebb88c6f4bb2e4;
+    // Base Sepolia key hash for VRF v2.5
+    bytes32 constant KEY_HASH = 0x9e1344a1247c8a1785d0a4681a27152bffdb43666ae5bf7d14d24a5efd44bf71;
     
     // VRF Configuration
-    uint64 public subscriptionId;
+    uint256 public subscriptionId;
     uint32 constant CALLBACK_GAS_LIMIT = 200000;
     uint16 constant REQUEST_CONFIRMATIONS = 3;
-    uint32 constant NUM_WORDS = 4; // We need 4 random numbers for 4 emojis
+    uint32 constant NUM_WORDS = 4;
     
     // Lottery contract reference
     address public immutable lotteryContract;
@@ -45,53 +43,41 @@ contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
     uint256 public lastDrawTime;
     
     // Events
-    event RandomNumbersRequested(
-        uint256 indexed requestId,
-        uint256 indexed gameDay,
-        address requester
-    );
-    
-    event RandomNumbersFulfilled(
-        uint256 indexed requestId,
-        uint256 indexed gameDay,
-        uint8[4] randomNumbers
-    );
-    
-    event WinningNumbersGenerated(
-        uint256 indexed gameDay,
-        uint8[4] winningNumbers,
-        uint256 timestamp
-    );
+    event RandomNumbersRequested(uint256 indexed requestId, uint256 indexed gameDay, address requester);
+    event RandomNumbersFulfilled(uint256 indexed requestId, uint256 indexed gameDay, uint8[4] randomNumbers);
+    event WinningNumbersGenerated(uint256 indexed gameDay, uint8[4] winningNumbers, uint256 timestamp);
     
     modifier onlyLottery() {
         require(msg.sender == lotteryContract, "Only lottery contract");
         _;
     }
     
-    constructor(uint64 _subscriptionId, address _lotteryContract) 
-        VRFConsumerBaseV2(VRF_COORDINATOR) 
+    constructor(uint256 _subscriptionId, address _lotteryContract)
+        VRFConsumerBaseV2Plus(VRF_COORDINATOR)
     {
-        COORDINATOR = VRFCoordinatorV2Interface(VRF_COORDINATOR);
         subscriptionId = _subscriptionId;
         lotteryContract = _lotteryContract;
+        // Transfer ownership to the deployer (inherited from ConfirmedOwnerWithProposal)
+        _transferOwnership(msg.sender);
     }
     
     /**
-     * @dev Request random numbers from Chainlink VRF
+     * @dev Request random numbers from Chainlink VRF v2.5
      */
     function requestRandomNumbers(uint256 gameDay) external onlyLottery returns (uint256 requestId) {
         require(gameDayToRequestId[gameDay] == 0, "Already requested for this game day");
         
-        // Request random words from Chainlink VRF
-        requestId = COORDINATOR.requestRandomWords(
-            KEY_HASH,
-            subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            CALLBACK_GAS_LIMIT,
-            NUM_WORDS
+        requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: KEY_HASH,
+                subId: subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: CALLBACK_GAS_LIMIT,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+            })
         );
         
-        // Store request details
         randomRequests[requestId] = RandomRequest({
             requestId: requestId,
             gameDay: gameDay,
@@ -110,23 +96,18 @@ contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
     }
     
     /**
-     * @dev Chainlink VRF callback function
+     * @dev Chainlink VRF v2.5 callback function
      */
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] memory randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         require(randomRequests[requestId].requestId == requestId, "Invalid request ID");
         require(!randomRequests[requestId].fulfilled, "Request already fulfilled");
         require(randomWords.length == NUM_WORDS, "Invalid number of random words");
         
-        // Convert random words to numbers 0-24 (for 25 emojis)
         uint8[4] memory randomNumbers;
         for (uint256 i = 0; i < NUM_WORDS; i++) {
             randomNumbers[i] = uint8(randomWords[i] % 25);
         }
         
-        // Store the results
         randomRequests[requestId].randomNumbers = randomNumbers;
         randomRequests[requestId].fulfilled = true;
         
@@ -144,16 +125,14 @@ contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
      * This is a synchronous version for testing or emergency use
      */
     function generateWinningNumbers() external view onlyLottery returns (uint8[4] memory) {
-        // Return last generated numbers if available
         if (lastDrawTime > 0) {
             return lastWinningNumbers;
         }
         
-        // Fallback: use block-based pseudo-randomness (not recommended for production)
         uint8[4] memory numbers;
         uint256 seed = uint256(keccak256(abi.encodePacked(
             block.timestamp,
-            block.difficulty,
+            block.prevrandao,
             block.number,
             msg.sender
         )));
@@ -207,27 +186,27 @@ contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
     }
     
     /**
-     * @dev Convert numbers to emoji display string (for testing/display)
+     * @dev Emergency function to set new subscription ID
      */
-    function numbersToEmojis(uint8[4] memory numbers) external pure returns (string memory) {
-        string[25] memory EMOJIS = [
-            "💰", "💎", "🚀", "🎰", "🎲", "🃏", "💸", "🏆", "🎯", "🔥",
-            "⚡", "🌙", "⭐", "💫", "🎪", "🎨", "🦄", "🌈", "🍀", "🎭", 
-            "🎢", "🎮", "🏅", "🎊", "🎈"
-        ];
-        
-        return string(abi.encodePacked(
-            EMOJIS[numbers[0]], " ",
-            EMOJIS[numbers[1]], " ",
-            EMOJIS[numbers[2]], " ",
-            EMOJIS[numbers[3]]
-        ));
+    function setSubscriptionId(uint256 _subscriptionId) external onlyOwner {
+        subscriptionId = _subscriptionId;
     }
     
     /**
-     * @dev Validate that numbers are in valid range (0-24)
+     * @dev Emergency function to manually set winning numbers (admin only)
      */
-    function validateNumbers(uint8[4] memory numbers) external pure returns (bool) {
+    function emergencySetWinningNumbers(uint8[4] memory numbers) external onlyOwner {
+        require(_validateNumbers(numbers), "Invalid numbers");
+        lastWinningNumbers = numbers;
+        lastDrawTime = block.timestamp;
+        
+        emit WinningNumbersGenerated(block.timestamp / 1 days, numbers, block.timestamp);
+    }
+    
+    /**
+     * @dev Internal validation function
+     */
+    function _validateNumbers(uint8[4] memory numbers) internal pure returns (bool) {
         for (uint256 i = 0; i < 4; i++) {
             if (numbers[i] > 24) return false;
         }
@@ -240,7 +219,7 @@ contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
     function getVRFConfig() external view returns (
         address coordinator,
         bytes32 keyHash,
-        uint64 subId,
+        uint256 subId,
         uint32 callbackGasLimit,
         uint16 requestConfirmations
     ) {
@@ -251,59 +230,5 @@ contract LottoMojiRandom is VRFConsumerBaseV2, Ownable {
             CALLBACK_GAS_LIMIT,
             REQUEST_CONFIRMATIONS
         );
-    }
-    
-    /**
-     * @dev Emergency function to set new subscription ID
-     */
-    function setSubscriptionId(uint64 _subscriptionId) external onlyOwner {
-        subscriptionId = _subscriptionId;
-    }
-    
-    /**
-     * @dev Emergency function to manually set winning numbers (admin only)
-     */
-    function emergencySetWinningNumbers(uint8[4] memory numbers) external onlyOwner {
-        require(validateNumbers(numbers), "Invalid numbers");
-        lastWinningNumbers = numbers;
-        lastDrawTime = block.timestamp;
-        
-        emit WinningNumbersGenerated(block.timestamp / 1 days, numbers, block.timestamp);
-    }
-    
-    /**
-     * @dev Get request history for analytics
-     */
-    function getRequestHistory(uint256 requestId) external view returns (
-        uint256 gameDay,
-        address requester,
-        uint256 timestamp,
-        bool fulfilled,
-        uint8[4] memory randomNumbers
-    ) {
-        require(randomRequests[requestId].requestId == requestId, "Invalid request ID");
-        
-        RandomRequest memory request = randomRequests[requestId];
-        return (
-            request.gameDay,
-            request.requester,
-            request.timestamp,
-            request.fulfilled,
-            request.randomNumbers
-        );
-    }
-    
-    /**
-     * @dev Check if we can request new random numbers
-     */
-    function canRequestRandom(uint256 gameDay) external view returns (bool) {
-        return gameDayToRequestId[gameDay] == 0;
-    }
-    
-    /**
-     * @dev Get total requests made
-     */
-    function getTotalRequests() external view returns (uint256) {
-        return lastRequestId;
     }
 } 

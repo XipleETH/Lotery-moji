@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Datos públicos de la lotería (solo lectura para usuarios)
+    match /lottery/{gameDay} {
+      allow read: if true;
+      allow write: if false; // Solo escritura desde Functions
+    }
+    
+    // Estadísticas diarias del sistema
+    match /stats/{document} {
+      allow read: if true;
+      allow write: if false; // Solo escritura desde Functions
+    }
+    
+    // Información de tickets - usuarios pueden leer sus propios tickets
+    match /tickets/{ticketId} {
+      allow read: if true; // Públicos para verificación de premios
+      allow write: if false; // Solo escritura desde blockchain
+    }
+    
+    // Historial de sorteos
+    match /draws/{gameDay} {
+      allow read: if true;
+      allow write: if false; // Solo escritura desde Functions
+    }
+    
+    // Información de pools y reservas
+    match /pools/{type} {
+      allow read: if true;
+      allow write: if false; // Solo escritura desde Functions
+    }
+    
+    // Eventos del blockchain (para analytics)
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if false; // Solo escritura desde Functions
+    }
+    
+    // Configuración del sistema (solo admin)
+    match /config/{document} {
+      allow read: if true;
+      allow write: if false; // Solo escritura manual de admin
+    }
+  }
+}

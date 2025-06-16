@@ -78,8 +78,8 @@ SUBSCRIPTION_ID=tu_subscription_id_chainlink
 FIREBASE_PROJECT_ID=lottomoji-blockchain
 FIREBASE_API_KEY=tu_firebase_api_key
 
-# Coinbase Wallet
-NEXT_PUBLIC_PROJECT_ID=tu_coinbase_project_id
+# Coinbase Wallet - Conexión directa con extensión del navegador
+# No se necesita configuración adicional
 ```
 
 ### 3. Deployment de Contratos

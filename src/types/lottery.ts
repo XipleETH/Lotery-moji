@@ -459,4 +459,34 @@ export const RESERVE_CONFIG = {
   MAIN_POOL_PERCENTAGE: 80,
   EMERGENCY_THRESHOLD: 2000, // USDC
   DISPLAY_DECIMALS: 2,
-} as const; 
+} as const;
+
+// NEW: Window ethereum types for Coinbase Wallet browser extension
+declare global {
+  interface Window {
+    ethereum?: {
+      // Standard ethereum provider methods
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      on: (event: string, callback: (...args: any[]) => void) => void;
+      removeListener: (event: string, callback: (...args: any[]) => void) => void;
+      
+      // Coinbase Wallet specific
+      isCoinbaseWallet?: boolean;
+      
+      // For multiple wallet providers
+      providers?: Array<{
+        request: (args: { method: string; params?: any[] }) => Promise<any>;
+        on: (event: string, callback: (...args: any[]) => void) => void;
+        removeListener: (event: string, callback: (...args: any[]) => void) => void;
+        isCoinbaseWallet?: boolean;
+        isMetaMask?: boolean;
+      }>;
+      
+      // Selected provider (when multiple wallets)
+      selectedProvider?: {
+        isCoinbaseWallet?: boolean;
+        isMetaMask?: boolean;
+      };
+    };
+  }
+} 

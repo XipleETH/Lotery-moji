@@ -2,23 +2,21 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/Base64.sol";
 
 /**
  * @title LottoMojiTickets
  * @dev NFT tickets with crypto-themed metadata and reserve tracking
  */
-contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
+contract LottoMojiTickets is ERC721, Ownable {
     using Strings for uint256;
     
     // 25 crypto/gambling themed emojis (same as main contract)
     string[25] public EMOJIS = [
-        "💰", "💎", "🚀", "🎰", "🎲", "🃏", "💸", "🏆", "🎯", "🔥",
-        "⚡", "🌙", "⭐", "💫", "🎪", "🎨", "🦄", "🌈", "🍀", "🎭", 
-        "🎢", "🎮", "🏅", "🎊", "🎈"
+        "MONEY", "DIAMOND", "ROCKET", "SLOT", "DICE", "JOKER", "CASH", "TROPHY", "TARGET", "FIRE",
+        "LIGHTNING", "MOON", "STAR", "SPARKLE", "CIRCUS", "ART", "UNICORN", "RAINBOW", "CLOVER", "THEATER", 
+        "ROLLER", "GAME", "MEDAL", "CONFETTI", "BALLOON"
     ];
     
     // Emoji names for metadata
@@ -63,7 +61,7 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
         _;
     }
     
-    constructor(address _lotteryContract) ERC721("LottoMoji Tickets", "LMT") {
+    constructor(address _lotteryContract) ERC721("LottoMoji Tickets", "LMT") Ownable(msg.sender) {
         lotteryContract = _lotteryContract;
         _initializeEmojiRarity();
     }
@@ -106,7 +104,7 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
         uint8[4] memory numbers,
         uint256 gameDay
     ) external onlyLottery {
-        require(!_exists(tokenId), "Token already exists");
+        require(_ownerOf(tokenId) == address(0), "Token already exists");
         
         // Calculate crypto theme and rarity
         string memory cryptoTheme = _determineCryptoTheme(numbers);
@@ -125,7 +123,6 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
         
         // Mint NFT
         _mint(to, tokenId);
-        _setTokenURI(tokenId, _generateTokenURI(tokenId));
         
         emit TicketMinted(tokenId, to, numbers, gameDay, cryptoTheme);
     }
@@ -147,25 +144,15 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
         // Build attributes array
         string memory attributes = _buildAttributes(metadata);
         
-        // Generate SVG image
-        string memory image = _generateSVGImage(metadata);
-        
-        // Create JSON metadata
-        string memory json = Base64.encode(
-            bytes(
-                string(
-                    abi.encodePacked(
-                        '{"name": "', name, '",',
-                        '"description": "', description, '",',
-                        '"image": "data:image/svg+xml;base64,', Base64.encode(bytes(image)), '",',
-                        '"attributes": [', attributes, '],',
-                        '"external_url": "https://lottomoji.vercel.app/ticket/', tokenId.toString(), '"}'
-                    )
-                )
+        // Create simple JSON metadata
+        return string(
+            abi.encodePacked(
+                '{"name": "', name, '",',
+                '"description": "', description, '",',
+                '"attributes": [', attributes, '],',
+                '"external_url": "https://lottomoji.vercel.app/ticket/', tokenId.toString(), '"}'
             )
         );
-        
-        return string(abi.encodePacked("data:application/json;base64,", json));
     }
     
     /**
@@ -233,7 +220,7 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
             '<text x="150" y="260" text-anchor="middle" fill="#ffffff" font-size="10">Ticket #', metadata.tokenId.toString(), '</text>',
             '<rect x="50" y="280" width="200" height="30" fill="none" stroke="#ffd700" stroke-width="1" rx="5"/>',
             '<text x="150" y="300" text-anchor="middle" fill="#ffd700" font-size="12">Reserve Eligible</text>',
-            '<text x="150" y="340" text-anchor="middle" fill="#888888" font-size="10">Base Sepolia • USDC</text>',
+            '<text x="150" y="340" text-anchor="middle" fill="#888888" font-size="10">Base Sepolia - USDC</text>',
             '<text x="150" y="360" text-anchor="middle" fill="#888888" font-size="8">LottoMoji.io</text>',
             '</svg>'
         ));
@@ -281,11 +268,11 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
             uint8 num = numbers[i];
             
             // Ultra rare emojis
-            if (num == 0 || num == 1 || num == 2) score += 25; // 💰💎🚀
+            if (num == 0 || num == 1 || num == 2) score += 25; // MONEY/DIAMOND/ROCKET
             // Rare emojis  
-            else if (num == 10 || num == 11 || num == 15 || num == 16) score += 15; // ⚡🌙🎨🦄
+            else if (num == 10 || num == 11 || num == 15 || num == 16) score += 15; // LIGHTNING/MOON/ART/UNICORN
             // Uncommon emojis
-            else if (num == 3 || num == 4 || num == 5 || num == 7) score += 10; // 🎰🎲🃏🏆
+            else if (num == 3 || num == 4 || num == 5 || num == 7) score += 10; // SLOT/DICE/JOKER/TROPHY
             // Common emojis
             else score += 5;
         }
@@ -293,7 +280,7 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
         // Bonus for special combinations
         bool hasMegaCombo = false;
         for (uint8 i = 0; i < 4; i++) {
-            if (numbers[i] == 0 || numbers[i] == 1 || numbers[i] == 2) { // 💰💎🚀
+            if (numbers[i] == 0 || numbers[i] == 1 || numbers[i] == 2) { // MONEY/DIAMOND/ROCKET
                 for (uint8 j = i + 1; j < 4; j++) {
                     if (numbers[j] == 0 || numbers[j] == 1 || numbers[j] == 2) {
                         hasMegaCombo = true;
@@ -313,7 +300,7 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
      * @dev Burn ticket after claim
      */
     function burnTicket(uint256 tokenId) external onlyLottery {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
         require(!ticketBurned[tokenId], "Already burned");
         
         ticketBurned[tokenId] = true;
@@ -326,28 +313,21 @@ contract LottoMojiTickets is ERC721, ERC721URIStorage, Ownable {
      * @dev Update reserve eligibility
      */
     function updateReserveEligibility(uint256 tokenId, bool eligible) external onlyLottery {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
         ticketMetadata[tokenId].eligibleForReserve = eligible;
     }
     
     /**
-     * @dev Override functions for URI storage
+     * @dev Override tokenURI to provide dynamic metadata
      */
-    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
-        return super.tokenURI(tokenId);
-    }
-    
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721URIStorage) returns (bool) {
-        return super.supportsInterface(interfaceId);
-    }
-    
-    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
-        super._burn(tokenId);
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        return _generateTokenURI(tokenId);
     }
     
     // View functions
     function getTicketMetadata(uint256 tokenId) external view returns (TicketMetadata memory) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
         return ticketMetadata[tokenId];
     }
     

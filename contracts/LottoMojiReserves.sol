@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -70,7 +70,7 @@ contract LottoMojiReserves is ReentrancyGuard, Ownable {
         _;
     }
     
-    constructor(address _usdcToken, address _lotteryContract) {
+    constructor(address _usdcToken, address _lotteryContract) Ownable(msg.sender) {
         usdcToken = IERC20(_usdcToken);
         lotteryContract = _lotteryContract;
     }

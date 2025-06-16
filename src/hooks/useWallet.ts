@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CoinbaseWalletSDK } from '@coinbase/wallet-sdk';
 import { ethers } from 'ethers';
 import { UseWalletReturn, WalletState } from '@/types/lottery';
 import { 
@@ -11,17 +10,32 @@ import {
   switchToBaseSepoliaChain 
 } from '@/utils/blockchain';
 
-// Coinbase Wallet configuration
-const coinbaseWallet = new CoinbaseWalletSDK({
-  appName: 'LottoMoji - Crypto Emoji Lottery',
-  appLogoUrl: '/lottomoji-logo.png',
-  darkMode: true,
-});
+// Detect Coinbase Wallet directly from browser
+const isCoinbaseWallet = () => {
+  return typeof window !== 'undefined' && 
+         window.ethereum && 
+         (window.ethereum.isCoinbaseWallet || window.ethereum.selectedProvider?.isCoinbaseWallet);
+};
 
-const ethereum = coinbaseWallet.makeWeb3Provider(
-  BASE_SEPOLIA_CONFIG.rpcUrl,
-  BASE_SEPOLIA_CONFIG.chainId
-);
+// Get Coinbase Wallet provider
+const getCoinbaseProvider = () => {
+  if (typeof window === 'undefined') return null;
+  
+  // Check if Coinbase Wallet is available
+  if (window.ethereum?.isCoinbaseWallet) {
+    return window.ethereum;
+  }
+  
+  // Check for multiple providers (e.g., MetaMask + Coinbase)
+  if (window.ethereum?.providers) {
+    const coinbaseProvider = window.ethereum.providers.find((provider: any) => 
+      provider.isCoinbaseWallet
+    );
+    return coinbaseProvider || null;
+  }
+  
+  return null;
+};
 
 export const useWallet = (): UseWalletReturn => {
   const [wallet, setWallet] = useState<WalletState>({
@@ -38,13 +52,18 @@ export const useWallet = (): UseWalletReturn => {
 
   // Initialize wallet state on component mount
   useEffect(() => {
-    checkConnection();
+    if (typeof window !== 'undefined') {
+      checkConnection();
+    }
   }, []);
 
   // Check if wallet is already connected
   const checkConnection = async () => {
     try {
-      const accounts = await ethereum.request({ method: 'eth_accounts' });
+      const provider = getCoinbaseProvider();
+      if (!provider) return;
+      
+      const accounts = await provider.request({ method: 'eth_accounts' });
       if (accounts.length > 0) {
         await updateWalletState(accounts[0]);
       }
@@ -56,9 +75,12 @@ export const useWallet = (): UseWalletReturn => {
   // Update wallet state with current info
   const updateWalletState = async (address: string) => {
     try {
-      const provider = new ethers.BrowserProvider(ethereum);
-      const network = await provider.getNetwork();
-      const balance = await provider.getBalance(address);
+      const provider = getCoinbaseProvider();
+      if (!provider) throw new Error('Coinbase Wallet not found');
+      
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const network = await ethersProvider.getNetwork();
+      const balance = await ethersProvider.getBalance(address);
       
       // Get USDC balance and allowance
       const usdcBalance = await getUSDCBalance(address);
@@ -87,11 +109,20 @@ export const useWallet = (): UseWalletReturn => {
     setError(null);
     
     try {
-      // Request account access if needed
-      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      // Check if Coinbase Wallet is available
+      const provider = getCoinbaseProvider();
+      
+      if (!provider) {
+        throw new Error(
+          'Coinbase Wallet no detectado. Por favor instala la extensión de Coinbase Wallet.'
+        );
+      }
+
+      // Request account access
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
       
       if (accounts.length === 0) {
-        throw new Error('No accounts found');
+        throw new Error('No se encontraron cuentas en Coinbase Wallet');
       }
 
       const address = accounts[0];
@@ -106,7 +137,18 @@ export const useWallet = (): UseWalletReturn => {
       
     } catch (err: any) {
       console.error('Connection error:', err);
-      setError(err.message || 'Failed to connect wallet');
+      
+      // Provide user-friendly error messages in Spanish
+      let userMessage = err.message;
+      if (err.code === 4001) {
+        userMessage = 'Conexión cancelada por el usuario';
+      } else if (err.message?.includes('User rejected')) {
+        userMessage = 'Conexión rechazada. Por favor acepta la conexión en Coinbase Wallet.';
+      } else if (err.message?.includes('not found') || err.message?.includes('no detectado')) {
+        userMessage = 'Coinbase Wallet no detectado. Instala la extensión desde coinbase.com/es/wallet';
+      }
+      
+      setError(userMessage);
     } finally {
       setLoading(false);
     }
@@ -123,8 +165,7 @@ export const useWallet = (): UseWalletReturn => {
       usdcAllowance: undefined,
     });
     
-    // Clear any stored connection data
-    localStorage.removeItem('walletconnect');
+    setError(null);
   }, []);
 
   // Switch to Base Sepolia chain
@@ -141,7 +182,7 @@ export const useWallet = (): UseWalletReturn => {
       }
     } catch (err: any) {
       console.error('Chain switch error:', err);
-      setError(err.message || 'Failed to switch chain');
+      setError(err.message || 'Error al cambiar de red');
     } finally {
       setLoading(false);
     }
@@ -149,6 +190,9 @@ export const useWallet = (): UseWalletReturn => {
 
   // Listen for account changes
   useEffect(() => {
+    const provider = getCoinbaseProvider();
+    if (!provider) return;
+
     const handleAccountsChanged = async (accounts: string[]) => {
       if (accounts.length === 0) {
         disconnect();
@@ -157,17 +201,20 @@ export const useWallet = (): UseWalletReturn => {
       }
     };
 
-    ethereum.on('accountsChanged', handleAccountsChanged);
-    return () => ethereum.off('accountsChanged', handleAccountsChanged);
+    provider.on('accountsChanged', handleAccountsChanged);
+    return () => provider.removeListener('accountsChanged', handleAccountsChanged);
   }, [disconnect]);
 
   // Listen for chain changes
   useEffect(() => {
+    const provider = getCoinbaseProvider();
+    if (!provider) return;
+
     const handleChainChanged = async (chainId: string) => {
       const newChainId = parseInt(chainId, 16);
       
       if (newChainId !== BASE_SEPOLIA_CONFIG.chainId) {
-        setError('Please switch to Base Sepolia network');
+        setError('Por favor cambia a la red Base Sepolia');
       } else {
         setError(null);
         if (wallet.address) {
@@ -176,8 +223,8 @@ export const useWallet = (): UseWalletReturn => {
       }
     };
 
-    ethereum.on('chainChanged', handleChainChanged);
-    return () => ethereum.off('chainChanged', handleChainChanged);
+    provider.on('chainChanged', handleChainChanged);
+    return () => provider.removeListener('chainChanged', handleChainChanged);
   }, [wallet.address]);
 
   // Refresh wallet data
@@ -202,17 +249,93 @@ export const useWallet = (): UseWalletReturn => {
     return wallet.chainId === BASE_SEPOLIA_CONFIG.chainId;
   }, [wallet.chainId]);
 
+  // Get wallet status info
+  const getWalletStatus = useCallback(() => {
+    if (!isCoinbaseWallet()) {
+      return {
+        status: 'not-available',
+        message: 'Coinbase Wallet no instalado',
+        action: 'install'
+      };
+    }
+    
+    if (!wallet.isConnected) {
+      return {
+        status: 'not-connected',
+        message: 'Wallet no conectado',
+        action: 'connect'
+      };
+    }
+    
+    if (!isCorrectNetwork()) {
+      return {
+        status: 'wrong-network',
+        message: 'Red incorrecta - Se necesita Base Sepolia',
+        action: 'switch-network'
+      };
+    }
+    
+    if (!hasEnoughUSDC()) {
+      return {
+        status: 'insufficient-usdc',
+        message: 'USDC insuficiente para comprar tickets',
+        action: 'get-usdc'
+      };
+    }
+    
+    return {
+      status: 'ready',
+      message: 'Wallet lista para usar',
+      action: null
+    };
+  }, [wallet, isCorrectNetwork, hasEnoughUSDC]);
+
+  // Format address for display
+  const formatAddress = useCallback((address?: string) => {
+    if (!address) return '';
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  }, []);
+
+  // Get network name
+  const getNetworkName = useCallback(() => {
+    switch (wallet.chainId) {
+      case 84532:
+        return 'Base Sepolia';
+      case 8453:
+        return 'Base Mainnet';
+      case 1:
+        return 'Ethereum Mainnet';
+      default:
+        return `Chain ID: ${wallet.chainId}`;
+    }
+  }, [wallet.chainId]);
+
   return {
+    // Wallet state
     wallet,
+    loading,
+    error,
+    
+    // Actions
     connect,
     disconnect,
     switchChain,
-    loading,
-    error,
-    // Additional utilities
     refreshWallet,
+    
+    // Utilities
     hasEnoughUSDC,
     hasEnoughAllowance,
     isCorrectNetwork,
+    getWalletStatus,
+    formatAddress,
+    getNetworkName,
+    
+    // Computed values
+    isWalletAvailable: isCoinbaseWallet(),
+    isConnected: wallet.isConnected,
+    address: wallet.address,
+    balance: wallet.balance,
+    usdcBalance: wallet.usdcBalance,
+    chainId: wallet.chainId,
   };
 }; 

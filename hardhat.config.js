@@ -1,4 +1,4 @@
-require("@nomiclabs/hardhat-ethers");
+require("@nomicfoundation/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 require("dotenv").config();
 
