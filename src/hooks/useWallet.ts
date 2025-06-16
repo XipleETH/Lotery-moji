@@ -331,7 +331,7 @@ export const useWallet = (): UseWalletReturn => {
     getNetworkName,
     
     // Computed values
-    isWalletAvailable: isCoinbaseWallet(),
+    isWalletAvailable: !!isCoinbaseWallet(),
     isConnected: wallet.isConnected,
     address: wallet.address,
     balance: wallet.balance,
