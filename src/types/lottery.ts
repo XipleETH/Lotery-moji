@@ -362,6 +362,12 @@ export interface UseLotteryReturn {
   claimPrize: (ticketId: number) => Promise<void>;
   loading: boolean;
   error: string | null;
+  // Additional utilities
+  refreshAll: () => Promise<void>;
+  getTimeUntilNextDrawFormatted: () => string;
+  hasActiveReserves: () => boolean;
+  getTotalReserves: () => number;
+  getPotentialPayout: (prizeLevel: 1 | 2 | 3, winnerCount?: number) => number;
 }
 
 export interface UseWalletReturn {
@@ -514,3 +520,5 @@ declare global {
     };
   }
 } 
+
+
