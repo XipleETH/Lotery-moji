@@ -68,8 +68,8 @@ export interface DailyReserveContribution {
   timestamp: bigint;
 }
 
-// NEW: Reserve statistics
-export interface ReserveStatistics {
+// NEW: Reserve statistics for contracts (raw bigint values)
+export interface ReserveStatisticsContract {
   totalReceived: bigint;
   totalUsedForRefills: bigint;
   currentTotalReserves: bigint;
